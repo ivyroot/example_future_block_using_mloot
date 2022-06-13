@@ -1289,7 +1289,10 @@ abstract contract ERC721Enumerable is ERC721, IERC721Enumerable {
 }
 
 
-contract TemporalLoot is ERC721Enumerable, ReentrancyGuard, Ownable {
+contract ExampleFutureBlockMintTemporalLoot is ERC721Enumerable, ReentrancyGuard, Ownable {
+    /// @dev Maps a tokenId to the block number it was minted in
+    mapping(uint256 => uint256) tokenMintBlockNumber;
+
         string[] private weapons = [
         "Warhammer",
         "Quarterstaff",
@@ -1503,7 +1506,13 @@ contract TemporalLoot is ERC721Enumerable, ReentrancyGuard, Ownable {
     }
     
     function pluck(uint256 tokenId, string memory keyPrefix, string[] memory sourceArray) internal view returns (string memory) {
-        uint256 rand = random(string(abi.encodePacked(keyPrefix, toString(tokenId))));
+        require(tokenMintBlockNumber[tokenId] > 0, "Missing token mint block number");
+        if (tokenMintBlockNumber[tokenId] + 10 > block.number) {
+            string memory previewResult = string('art not available yet');
+            return previewResult;
+        }
+        bytes32 seedData = blockhash(tokenMintBlockNumber[tokenId] + 10);
+        uint256 rand = random(string(abi.encodePacked(keyPrefix, tokenId, seedData)));
         string memory output = sourceArray[rand % sourceArray.length];
         uint256 greatness = rand % 21;
         if (greatness > 14) {
@@ -1570,6 +1579,7 @@ contract TemporalLoot is ERC721Enumerable, ReentrancyGuard, Ownable {
     function claim(uint256 tokenId) public nonReentrant {
         require(tokenId > 8000 && tokenId < (block.number / 10) + 1, "Token ID invalid");
         _safeMint(_msgSender(), tokenId);
+        tokenMintBlockNumber[tokenId] = block.number;
     }
     
     function toString(uint256 value) internal pure returns (string memory) {
